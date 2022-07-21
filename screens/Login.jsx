@@ -4,10 +4,56 @@ import {
     widthPercentageToDP as wp,
     heightPercentageToDP as hp,
   } from 'react-native-responsive-screen';
-  
-  
+import {loginUser} from '../api/user';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from "react-redux";
+import { setUser } from "../slices/userSlice"; 
+import { registerForPushNotificationsAsync } from "../helpers/notifications";
+
 const Login = (props)=> {
-     
+    
+    const dispatch = useDispatch()
+    //déclaration de state email et password
+    const [email, setEmail] = useState("")
+    const [password, setPassword] = useState("")
+    
+    const storeData = async (token) => {
+        try {
+            //mise dans le AsyncStorage
+            await AsyncStorage.setItem('babypub-token', token);
+        } catch (error) {
+          return error
+        }
+    }
+    
+    const onSubmitForm = () =>{
+        //on crée l'objet
+        let data = {
+			email: email,
+			password: password
+		}
+		
+		//appel de la fonction api pour connecter
+        loginUser(data)
+		.then((res)=>{
+		    console.log('RES login',res);
+		    //on stock dans le AsyncStorage
+            storeData(res.token);
+		    
+		    //appel de la fonction de validatiion des push notifications
+		    registerForPushNotificationsAsync(res.user.id, res.token);
+		    //on crée un objet user qui recup les infos utilisateur retourné par le login
+		    let user = res.user;
+            //on ajoute le token à l'objet
+            user.token = res.token
+            
+            //envoi dans le store
+            dispatch(setUser(user))
+            
+		})
+		.catch(err=>console.log(err))
+    }
+    
     return (
     	<View style={styles.container}>
         	<ScrollView style={styles.scrollContainer}>
@@ -16,16 +62,42 @@ const Login = (props)=> {
 				>
 					Se connecter
 				</Text>
-			</ScrollView>
-		</View>
-	)
+
+				<TextInput
+    				style={styles.input}
+    				type="text"
+    				placeholder="email"
+    				onChangeText={(text)=>{
+    					setEmail(text);
+    				}}
+    			/>
+				<TextInput
+    				style={styles.input}
+    				type="text"
+    				placeholder="Mot de passe"
+    				onChangeText={(text)=>{
+    					setPassword(text);
+    				}}
+    			/>
+    			
+    			<TouchableOpacity
+                    style={styles.button}
+                    onPress={()=>{
+                        onSubmitForm();
+                    }}
+				>
+    				<Text style={styles.buttonText}>Enregistrer</Text>
+    			</TouchableOpacity>
+    		</ScrollView>
+    	</View>
+    )
      
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#42e5ff',
+    backgroundColor: 'black',
 	paddingTop: hp('30%')
   },
   title: {
